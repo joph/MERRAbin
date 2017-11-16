@@ -176,7 +176,7 @@ setOldClass("tibble")
 
 MERRABin<- setRefClass("MERRABin",
                        fields=list(file="character",
-                                   endian="character",
+
                                    con="file",
                                    byteSize="integer",
                                    dimX="integer",
@@ -195,9 +195,9 @@ MERRABin<- setRefClass("MERRABin",
 
                           methods=list(
 
-                            initialize=function(file,endian){
+                            initialize=function(file){
 
-                              .self$endian<-endian
+
 
                             .self$con<-file(paste(file,"meta.bin",sep=""),open="rb")
 
@@ -207,58 +207,58 @@ MERRABin<- setRefClass("MERRABin",
 
                             ####write meta information to file
                             ####size
-                            .self$byteSize<-readBin(con,what="integer",size=4,endian=endian)
-                            #print(.self$byteSize)
+                            .self$byteSize<-readBin(con,what="integer",size=8)
+                            print(.self$byteSize)
 
                             ####dimx
-                            .self$dimX<-readBin(con,what="integer",size=4,endian=endian)
-                            #print(.self$dimX)
+                            .self$dimX<-readBin(con,what="integer",size=8)
+                            print(.self$dimX)
 
                             #print("here3")
 
                             ####dimy
-                            .self$dimY<-readBin(con,what="integer",size=4,endian=endian)
-                            #print(.self$dimY)
+                            .self$dimY<-readBin(con,what="integer",size=8)
+                            print(.self$dimY)
 
                             #print("here4")
 
                             ####timedim
-                            .self$timeDim<-readBin(con,what="integer",size=4,endian=endian)
-                            #print(.self$timeDim)
+                            .self$timeDim<-readBin(con,what="integer",size=8)
+                            print(.self$timeDim)
 
                             ####timePerFile
-                            .self$timePerFile<-readBin(con,what="integer",size=4,endian=endian)
-                            #print(.self$timePerFile)
+                            .self$timePerFile<-readBin(con,what="integer",size=8)
+                            print(.self$timePerFile)
 
 
                             ####lons
-                            .self$lons<-readBinMult(con,"double",8,.self$dimX,endian=endian)
-                            #print(.self$lons)
+                            .self$lons<-readBinMult(con,"double",8,.self$dimX)
+                            print(.self$lons)
 
                             #print("here6")
 
                             ####lats
-                            .self$lats<-readBinMult(con,"double",8,.self$dimY,endian=endian)
-                            #print("here7")
+                            .self$lats<-readBinMult(con,"double",8,.self$dimY)
+                            print(.self$lats)
 
                             ####time
-                            .self$time<-readBinMult(con,"integer",4,.self$timeDim,endian=endian)
-                            #print(head(.self$time))
+                            .self$time<-readBinMult(con,"integer",8,.self$timeDim)
+                            print(head(.self$time))
 
                             ####amount years
-                            y<-readBin(con,"integer",size=4,endian=endian)
-                            #print(y)
+                            y<-readBin(con,"integer",size=8)
+                            print(y)
                             ####years
-                            .self$years<-readBinMult(con,"integer",4,y,endian=endian)
-                            #print(head(.self$years))
+                            .self$years<-readBinMult(con,"integer",8,y)
+                            print(head(.self$years))
 
                             ####counts
-                            .self$counts<-readBinMult(con,"integer",4,y,endian=endian)
-                            #print(head(.self$counts))
+                            .self$counts<-readBinMult(con,"integer",8,y)
+                            print(head(.self$counts))
 
                             ####sizePerYear
                             .self$sizePerYear<-.self$timePerFile*.self$counts*.self$byteSize
-                            #print(head(.self$sizePerYear))
+                            print(head(.self$sizePerYear))
 
 
                             .self$grid<-(expand.grid(.self$lats,.self$lons) %>% as_tibble(.))
@@ -356,9 +356,9 @@ MERRABin$methods(
 #' @param elements Number of elements
 #' @param endian Endian type of number (Big or Small)
 #' @return The values read in from the binary connection
-readBinMult<-function(con,what,size,elements,endian){
+readBinMult<-function(con,what,size,elements){
 
-  c<-readBin(con=con,what=what,n=elements,size=size,endian=endian)
+  c<-readBin(con=con,what=what,n=elements,size=size)
   return(c)
 
 }
@@ -471,19 +471,19 @@ convMerraToBin<-function(in_path,out_path,date_seq,param){
 
   #size
   size<-2
-  writeBin(size,con,8)
+  writeBin(as.integer(size),con,8)
 
   #dimx
-  writeBin(dimX,con,8)
+  writeBin(as.integer(dimX),con,8)
 
   #dimy
-  writeBin(dimY,con,8)
+  writeBin(as.integer(dimY),con,8)
 
   #timeDim
-  writeBin(timeDim,con,8);
+  writeBin(as.integer(timeDim),con,8);
 
   #timePerFile
-  writeBin(timePerFile,con,8);
+  writeBin(as.integer(timePerFile),con,8);
 
   #lons
   writeBin(as.vector(lons),con,8);
@@ -492,7 +492,24 @@ convMerraToBin<-function(in_path,out_path,date_seq,param){
   writeBin(as.vector(lats),con,8);
 
   #time
-  writeBin(as.integer(date_seq),con,8)
+  date_seq_h<-seq(date_seq[1],date_seq[length(date_seq)]+3600*23,by="h")
+  writeBin(as.integer(date_seq_h),con,8)
+
+
+  #amount years
+  y_l<-length(unique(year(date_seq)))
+
+  ####amount years
+  writeBin(as.integer(y_l),con,8)
+  print(y_l)
+
+  ####years
+  years<-unique(year(date_seq))
+  writeBin(as.vector(as.integer(years)),con,8)
+
+  ####counts
+  td<-tibble(dat=date_seq,year=year(date_seq)) %>% group_by(year) %>% summarize(n=n())
+  writeBin(as.vector(td$n),con,8)
 
   close(con)
 

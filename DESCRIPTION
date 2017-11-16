@@ -14,12 +14,16 @@ Imports:
     geosphere,
     feather,
     httr,
-    lubridate
+    lubridate,
+    dplyr,
+    magrittr
 Depends:
     ncdf4,
     tibble,
     geosphere,
     feather,
     httr,
-    lubridate
+    lubridate,
+    dplyr,
+    magrittr
 RoxygenNote: 6.0.1
