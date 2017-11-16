@@ -303,8 +303,8 @@ MERRABin$methods(
                                 ts_<-readBinMult(con_,
                                               what="integer",
                                               size=.self$byteSize,
-                                              .self$sizePerYear[i]/.self$byteSize,
-                                              .self$endian)/100
+                                              .self$sizePerYear[i]/.self$byteSize
+                                              )/100
                                 ts<-c(ts,ts_)
                                 close(con_)
                               }
