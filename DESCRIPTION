@@ -16,7 +16,8 @@ Imports:
     httr,
     lubridate,
     dplyr,
-    magrittr
+    magrittr,
+    sp
 Depends:
     ncdf4,
     tibble,
@@ -25,5 +26,6 @@ Depends:
     httr,
     lubridate,
     dplyr,
-    magrittr
+    magrittr,
+    sp
 RoxygenNote: 6.0.1

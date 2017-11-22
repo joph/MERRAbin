@@ -25,7 +25,11 @@ getFileMerraFinal<-function(i,fileNameIn,fileNameOut,user,pass){
 
 #' Get MERRA Files for a given spatial box
 #' @description Function to download data from the merra2 dataset
-#' @param lon1,lat1,lon2,lat2 Box to download from.
+#' @param targetPath Path to save MERRA ncdf files to
+#' @param lon1 Box coordinate
+#' @param lat1 Box coordinate
+#' @param lon2 Box coordinate
+#' @param lat2 Box coordinate
 #' @param period A vector with all dates to download (daily entries in the vector).
 #' @param params The respective parameter to be downloaded
 #' @param user,pass username and password for the downloadserver get one at: https://urs.earthdata.nasa.gov/home
@@ -36,6 +40,11 @@ getMERRADataBox<-function(lon1,lat1,lon2,lat2,period,params,user,pass,runParalle
   #dir<-paste("./",lon1,"_",lat1,"_",lon2,"_",lat2,sep="")
   #dir.create(file.path(getwd(), dir), showWarnings = FALSE)
   #setwd(dir)
+
+  targetPath<-addSlash(targetPath)
+
+  dir.create(targetPath, recursive=TRUE,showWarnings = FALSE)
+
 
   dates<-period %>% format(format="%Y%m%d")
   year<-period %>% format(format="%Y") %>% as.numeric()
@@ -57,8 +66,8 @@ getMERRADataBox<-function(lon1,lat1,lon2,lat2,period,params,user,pass,runParalle
 
   for(i in 1:length(period)){
 
-    fileName<-paste("MERRA_",lon1,"_",lat1,"_",lon2,"_",lat2,"_",variables,"_",dates[i],".nc4",sep="")
-    #fileName<-paste("MERRA_",lon1,"_",lat1,"_",lon2,"_",lat2,"_",variables,"_",dates[i],".h5",sep="")
+    fileName<-paste(targetPath,
+                    "MERRA_",lon1,"_",lat1,"_",lon2,"_",lat2,"_",variables,"_",dates[i],".nc4",sep="")
 
     fileNamesOut[i]<-fileName
 
@@ -76,7 +85,7 @@ getMERRADataBox<-function(lon1,lat1,lon2,lat2,period,params,user,pass,runParalle
 
 
 
-     url<-paste("http://goldsmr4.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FMERRA2%2FM2I1NXASM.5.12.4%2F",
+    url<-paste("http://goldsmr4.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FMERRA2%2FM2I1NXASM.5.12.4%2F",
                year[i],"%2F",
                month[i],"%2FMERRA2_",fV,".inst1_2d_asm_Nx.",
                dates[i],".nc4&FORMAT=bmM0Lw&BBOX=",boxes,
@@ -88,34 +97,38 @@ getMERRADataBox<-function(lon1,lat1,lon2,lat2,period,params,user,pass,runParalle
     fileNamesIn[i]<-url
 
   }
-   if(runParallel){
+  if(runParallel){
 
-    no_cores <- parallel::detectCores() - 1
+    no_cores <- 10
 
     # Initiate cluster
     cl <- parallel::makeCluster(no_cores)
     parallel::clusterEvalQ(cl, library("httr"))
-    parallel::clusterEvalQ(cl, sink(paste0("d:/temp/output", Sys.getpid(), ".txt")))
-
+    if(outputofParallelProc!=""){
+      parallel::clusterEvalQ(cl, sink(paste0(outputOfParallelProc, Sys.getpid(), ".txt")))
+    }
 
     files<-data.frame(fileNamesIn,fileNamesOut)
+
     parallel::parSapply(cl,1:length(fileNamesIn),getFileMerraFinal,fileNamesIn, fileNamesOut,user,pass)
-    stopCluster(cl)
+    parallel::stopCluster(cl)
   }else{
     sapply(1:length(fileNamesIn),getFileMerraFinal,fileNamesIn, fileNamesOut,user,pass)
 
 
   }
 
-  setwd(original)
 
 }
+
 
 
 #' reads merra file from disk
 #' interpolates the data from the neighbouring 4 points with respect to the point given in lon lat
 #' @param ncname is the name of the MERRA file
 #' @param pname is the name of the parameter to read
+#' @param lon Longitude position to read from
+#' @param lat Latitude position to read from
 #' @return a tibble with the interpolated timeseries at the given point. Also, time is added
 readParamMerra <- function(ncname,pname,lon,lat) {
 
@@ -155,6 +168,8 @@ readParamMerra <- function(ncname,pname,lon,lat) {
 setOldClass("file")
 setOldClass("data.frame")
 setOldClass("tibble")
+setOldClass("POSIXt")
+#setOldClass("SpatialPoints")
 
 #' Reference class for Binary gridded timeseries data
 #'
@@ -190,96 +205,107 @@ MERRABin<- setRefClass("MERRABin",
                                    years="vector",
                                    counts="vector",
                                    timePerFile="integer",
-                                   sizePerYear="vector"
-                                   ),
+                                   sizePerYear="vector",
+                                   timeDate="POSIXt",
+                                   spatialPoints="SpatialPoints"
+                       ),
 
-                          methods=list(
+                       methods=list(
 
-                            initialize=function(file){
-
-
-
-                            .self$con<-file(paste(file,"meta.bin",sep=""),open="rb")
-
-                            .self$file<-file
-
-                            #print("here1")
-
-                            ####write meta information to file
-                            ####size
-                            .self$byteSize<-readBin(con,what="integer",size=8)
-                            print(.self$byteSize)
-
-                            ####dimx
-                            .self$dimX<-readBin(con,what="integer",size=8)
-                            print(.self$dimX)
-
-                            #print("here3")
-
-                            ####dimy
-                            .self$dimY<-readBin(con,what="integer",size=8)
-                            print(.self$dimY)
-
-                            #print("here4")
-
-                            ####timedim
-                            .self$timeDim<-readBin(con,what="integer",size=8)
-                            print(.self$timeDim)
-
-                            ####timePerFile
-                            .self$timePerFile<-readBin(con,what="integer",size=8)
-                            print(.self$timePerFile)
+                         initialize=function(file){
 
 
-                            ####lons
-                            .self$lons<-readBinMult(con,"double",8,.self$dimX)
-                            print(.self$lons)
 
-                            #print("here6")
+                           .self$con<-file(paste(file,"meta.bin",sep=""),open="rb")
 
-                            ####lats
-                            .self$lats<-readBinMult(con,"double",8,.self$dimY)
-                            print(.self$lats)
+                           .self$file<-file
 
-                            ####time
-                            .self$time<-readBinMult(con,"integer",8,.self$timeDim)
-                            print(head(.self$time))
+                           #print("here1")
 
-                            ####amount years
-                            y<-readBin(con,"integer",size=8)
-                            print(y)
-                            ####years
-                            .self$years<-readBinMult(con,"integer",8,y)
-                            print(head(.self$years))
+                           ####write meta information to file
+                           ####size
+                           .self$byteSize<-readBin(con,what="integer",size=8)
+                           printl("byte size:",.self$byteSize)
 
-                            ####counts
-                            .self$counts<-readBinMult(con,"integer",8,y)
-                            print(head(.self$counts))
+                           ####dimx
+                           .self$dimX<-readBin(con,what="integer",size=8)
+                           printl("dim X:",.self$dimX)
 
-                            ####sizePerYear
-                            .self$sizePerYear<-.self$timePerFile*.self$counts*.self$byteSize
-                            print(head(.self$sizePerYear))
+                           #print("here3")
 
+                           ####dimy
+                           .self$dimY<-readBin(con,what="integer",size=8)
+                           printl("dim Y:",.self$dimY)
 
-                            .self$grid<-(expand.grid(.self$lats,.self$lons) %>% as_tibble(.))
-                            names(.self$grid)<-c("Lat","Lon")
-                            .self$grid<-dplyr::select(.self$grid,Lon,Lat)
-                            #print("here9")
-                            close(.self$con)
+                           #print("here4")
 
-                            },
+                           ####timedim
+                           .self$timeDim<-readBin(con,what="integer",size=8)
+                           printl("timeDim:",.self$timeDim)
 
-                            getDateTime=function(){
-
-                              return(as.POSIXct(.self$time,origin=as.POSIXct("1980-01-01 00:00",tz="UTC")))
-
-                            },
+                           ####timePerFile
+                           .self$timePerFile<-readBin(con,what="integer",size=8)
+                           printl("timePerFile:",.self$timePerFile)
 
 
-                            closeFile=function(){
-                              close(.self$con)
-                            }
-                          ))
+                           ####lons
+                           .self$lons<-readBinMult(con,"double",8,.self$dimX)
+                           printl("Lon coordinates:",.self$lons)
+
+
+
+                           ####lats
+                           .self$lats<-readBinMult(con,"double",8,.self$dimY)
+                           printl("Lat coordinates:",.self$lats)
+
+                           ####time
+                           .self$time<-readBinMult(con,"integer",8,.self$timeDim)
+                           printl("Time values:",head(.self$time))
+
+                           ####amount years
+                           y<-readBin(con,"integer",size=8)
+                           printl("Number of years:",y)
+                           ####years
+                           .self$years<-readBinMult(con,"integer",8,y)
+                           printl("Years:",head(.self$years))
+
+                           ####counts
+                           .self$counts<-readBinMult(con,"integer",8,y)
+                           printl("Days per year:",head(.self$counts))
+
+                           ####sizePerYear
+                           .self$sizePerYear<-.self$timePerFile*.self$counts*.self$byteSize
+                           #print(head(.self$sizePerYear))
+
+
+                           .self$grid<-(expand.grid(.self$lats,.self$lons) %>% as_tibble(.))
+                           names(.self$grid)<-c("Lat","Lon")
+                           .self$grid<-dplyr::select(.self$grid,Lon,Lat)
+                           #print("here9")
+                           close(.self$con)
+
+                           .self$timeDate<-as.POSIXct(.self$time,origin="1970-01-01 00:00 UTC",tz="UTC")
+
+                           .self$spatialPoints<-sp::SpatialPoints(.self$grid,
+                                                                  proj4string=CRS(as.character("+proj=longlat +ellps=WGS84")))
+
+
+
+
+
+                         },
+
+                         getDateTime=function(){
+
+                           return(as.POSIXct(.self$time,origin=as.POSIXct("1980-01-01 00:00",tz="UTC")))
+
+                         },
+
+
+                         closeFile=function(){
+                           close(.self$con)
+                         }
+                       ))
 
 #' Reads binary encoded timeseries from disk
 #'
@@ -290,27 +316,50 @@ NULL
 
 MERRABin$methods(
 
-                            readTS=function(posTS){
-                              ts<-c()
-                              for(i in 1:length(.self$years)){
-                              #  for(i in 2:3){
-                                f<-paste(.self$file,.self$years[i],".bin",sep="")
-                                #print(f)
-                                con_<-file(f,open="rb")
-                                pos<-.self$sizePerYear[i]*(posTS-1)
+  readTS=function(posTS){
+    readTSYears(posTS,.self$years) %>% return()
+  })
 
-                                seek(con_,pos)
-                                ts_<-readBinMult(con_,
-                                              what="integer",
-                                              size=.self$byteSize,
-                                              .self$sizePerYear[i]/.self$byteSize
-                                              )/100
-                                ts<-c(ts,ts_)
-                                close(con_)
-                              }
 
-                              return(ts)
-                            })
+#' Reads binary encoded timeseries from disk forgiven years
+#'
+#' @name MERRABin_readTS
+#' @param posTS Position of timeseries. This is an internal representation, it is better to use getClosestTS
+#' @param years Years to read from disk
+#' @return The complete timeseries as vector
+NULL
+
+MERRABin$methods(
+
+  readTSYears=function(posTS,years){
+    ts<-c()
+    for(y in years){
+      #  for(i in 2:3){
+
+      i<-which(.self$years==y)
+      if(length(i)==0){
+        print("y is not in dataset, aborting!")
+        return()
+      }
+      f<-paste(.self$file,.self$years[i],".bin",sep="")
+      #print(f)
+      con_<-file(f,open="rb")
+      pos<-.self$sizePerYear[i]*(posTS-1)
+
+      seek(con_,pos)
+      ts_<-readBinMult(con_,
+                       what="integer",
+                       size=.self$byteSize,
+                       .self$sizePerYear[i]/.self$byteSize
+      )/100
+      ts<-c(ts,ts_)
+      close(con_)
+    }
+
+    return(ts)
+  })
+
+
 #' Gets timeseries at lon/lat point
 #' @description Gets the timeseries from the binary file which is closest to the given longitude/latitude
 #'
@@ -322,30 +371,129 @@ NULL
 MERRABin$methods(
 
 
-                            getClosestTS=function(lon,lat){
-                              t1<-Sys.time()
-                              sel<-.self$grid %>% dplyr::filter(Lon<(lon+1)&Lon>(lon-1))
-                              if(nrow(sel)==0){
-                                dists<-distm(.self$grid,
-                                             c(lon, lat), fun = distHaversine)
-                                d<-.self$grid %>% slice(which(dists==min(dists)))
+  getClosestTS=function(lon,lat){
+    getClosestTSYears(lon,lat,.self$years) %>% return()
+  }
 
-                              }else{
-                                dists<-distm(sel,
-                                     c(lon, lat), fun = distHaversine)
-                                d<-sel %>% slice(which(dists==min(dists)))
-                              }
+)
 
-                              #print(paste(d$Lon,d$Lat))
-                              tsInd<-which(.self$grid$Lon==d$Lon&.self$grid$Lat==d$Lat)
-                              #print(tsInd)
-                              ts<-readTS(tsInd)
-                              t2<-Sys.time()
-                              print(t2-t1)
-                              return(ts)
-                            }
+#' Gets timeseries at lon/lat point for given years
+#' @description Gets the timeseries from the binary file which is closest to the given longitude/latitude
+#'
+#' @name MERRABin_getClosestTS
+#' @param lon,lat Longitude and Latitude where the closest existing point is found
+#' @param years Years to load from file
+#' @return The complete timeseries as vector
+NULL
 
-                          )
+MERRABin$methods(
+
+
+  getClosestTSYears=function(lon,lat,years){
+    t1<-Sys.time()
+    sel<-.self$grid %>% dplyr::filter(Lon<(lon+1)&Lon>(lon-1))
+    if(nrow(sel)==0){
+      dists<-distm(.self$grid,
+                   c(lon, lat), fun = distHaversine)
+      d<-.self$grid %>% slice(which(dists==min(dists)))
+
+    }else{
+      dists<-distm(sel,
+                   c(lon, lat), fun = distHaversine)
+      d<-sel %>% slice(which(dists==min(dists)))
+    }
+
+    #print(paste(d$Lon,d$Lat))
+    tsInd<-which(.self$grid$Lon==d$Lon&.self$grid$Lat==d$Lat)
+    #print(tsInd)
+    ts<-readTSYears(tsInd,years)
+    t2<-Sys.time()
+    #print(t2-t1)
+    return(ts)
+  }
+
+)
+
+
+
+
+#' gets the timeseries of timestamps
+#' @description returns a timeseries of timestamps in UTC
+#' @return The timestampe timeseries
+NULL
+
+MERRABin$methods(
+
+
+  getTime=function(){
+    .self$timeDate %>% return()
+  }
+
+)
+
+#' gets the timeseries of timestamps with limitation to certain years
+#' @description returns a timeseries of timestamps in UTC
+#' @return The timestamp timeseries
+NULL
+
+MERRABin$methods(
+
+
+  getTimeYears=function(years){
+
+    u<-unique(year(.self$timeDate))
+    if(!all(years %in% u)) {
+      print("ERROR not all years found. The following years are in the current BIN object:")
+      print(u)
+      return()
+    }
+
+    return(.self$timeDate[year(.self$timeDate) %in% years])
+
+  }
+
+)
+
+#' gets the set of timeseries which are related to the MERRA points
+#' in the given shape file
+#'
+#' @param shapefile The shapefile to read
+#' @param years The years to read
+#' @return A tibble of timeseries
+NULL
+
+MERRABin$methods(
+
+
+  getShape=function(shape,years=c()){
+    print("This may take some time...")
+    if(length(years)==0){
+      years<-.self$years
+    }
+
+
+    sp_proj<-spTransform(mb$spatialPoints,projection(SE_border))
+    res<-sp_proj[shape,]
+
+    dat<-unlist(mapply(.self$getClosestTSYears,res$Lon,res$Lat,list(years),SIMPLIFY = FALSE))
+    time<-.self$getTimeYears(years)
+    dat<-as_tibble(data.frame(time=time,val=dat,Lon=rep(res$Lon,each=length(time)),Lat=rep(res$Lat,each=length(time))))
+    return(dat)
+
+  }
+
+)
+
+
+
+#' Prints to element to console
+#'
+#' @description Prints two elements to the console, concatenating them
+#' @param a Element A
+#' @param b Element B
+printl<-function(a,b){
+  print(paste(a,b))
+}
 
 
 
@@ -363,95 +511,74 @@ readBinMult<-function(con,what,size,elements){
 
 }
 
-#' Creates a MERRA Test Data Set
-#' @description Creates the test-data set also available as data in the package
-#' @param dir Directory to save the test data set
-#' @param date_seq length of test data set
-#' @return Does not return anything. Writes, as side-effect, two files in the given directory: test_data.feater and MERRA_Test.Rdata, which contain the same information
-createTestDataSet<-function(dir,date_seq){
 
 
+#' Adds Slash to path name
+#'
+#' @description adds a slash to the end of a path name
+#'
+#' @param targetPath Path name
+#'
+#' @return A path name with trailing slash
+addSlash<-function(targetPath){
 
-  setwd(dir)
-  getMERRADataBox(-180,-90,180,90,
-                date_seq,
-                "T2M",
-                "RE_EXTREME",
-                "Re_extreme666!",
-                FALSE)
-  start<-Sys.time()
-  filelist<-list.files(path=".",pattern = "MERRA")
+  lastChar<-substr(targetPath, nchar(targetPath),nchar(targetPath))
 
-  df<-data.frame(matrix(nrow=(length(date_seq)*24),ncol=9))
+  if(lastChar!="/"&&lastChar!="\\"){
 
-  lon_pos<-c(1,1,1,1,1,1,2,2,3,3)
-  lat_pos<-c(1,2,3,4,5,6,1,2,1,2)
+    targetPath<-paste(targetPath,"/",sep="")
 
+  }
 
-  if(!file.exists("testdata.feather")){
-
-    cnt<-1
-    for(file in filelist){
-
-      f<-file
-      print(f)
-
-      nc_file<-nc_open(f)
-      dat<-ncvar_get(nc_file,"T2M")
-      nc_close(nc_file)
-
-      rows<-cnt:(cnt+23)
-
-      for(j in 1:10){
-        df[rows, j]<-dat[lon_pos[j]  ,lat_pos[j]  ,]
-      }
-
-      cnt<-cnt+24
-    }
-
-    par(mfrow=c(1,1))
-    matplot(df-273.5,type="l")
-
-    xdim<-dim(dat)[1]
-    ydim<-dim(dat)[2]
-    tot_pos<-(lon_pos-1)*ydim+lat_pos
-
-    names(df)<-tot_pos
-    test_data_fin<-as_tibble(df) %>% gather(pos,val) %>% mutate(pos=as.numeric(pos))
-
-    write_feather(test_data_fin,path="testdata.feather")
-    MERRA_Test<-test_data_fin
-    save(MERRA_Test,file="MERRA_Test.RData")
-    end<-Sys.time()
-    print(end-start)
-}
-
-
-
-  test_data<-read_feather("testdata.feather")
-
-  return(test_data)
+  return(targetPath)
 
 }
+
 
 
 
 
 #' conversion of merra files to binary files
+#'
 #' @description converts merra files to a fast readable binary format
 #' @param in_path Path of merra files
 #' @param out_path path where output binary files should be located
 #' @param date_seq sequence of dates which should be converted
 #' @param param Parameter in MERRA file that should be converted
-convMerraToBin<-function(in_path,out_path,date_seq,param){
+#' @param silent If true, no detailed output on handling of files is printed to console
+convMerraToBin<-function(in_path,out_path,date_seq,param,silent=TRUE){
 
   print(paste("Starting conversion of MERRA to Binary Files"))
 
+
+  in_path<-addSlash(in_path)
+  out_path<-addSlash(out_path)
+
+
+  dir.create(out_path, showWarnings = FALSE)
+
+
   t_start <- Sys.time()
-  setwd(in_path)
+
   con<-file(paste(out_path,"meta.bin",sep=""),open="wb")
 
-  listOfFiles<-list.files(path=".",pattern="MERRA")
+  listOfFiles<-list.files(path=in_path,pattern="MERRA")
+  listOfFiles<-paste(in_path,listOfFiles,sep="")
+
+  datesInFiles<-substr(listOfFiles,nchar(listOfFiles[1])-11,nchar(listOfFiles[1])-4)
+
+  strDatesSeq<-paste(year(date_seq),
+                     sprintf("%02i",month(date_seq)),
+                     sprintf("%02i",day(date_seq)),sep="")
+
+  diff<-setdiff(strDatesSeq,datesInFiles)
+
+  if(length(diff)>0){
+    print("ERRROR: The following dates could not be found in the MERRA files:")
+    print(diff)
+    print("ABORTING")
+    return()
+  }
 
   nc_file<-nc_open(listOfFiles[1])
   temp<-ncvar_get(nc_file,param)
@@ -532,6 +659,7 @@ convMerraToBin<-function(in_path,out_path,date_seq,param){
 }
 
 #' Helper function to convert one year of MERRA data to a binary file
+#'
 #' @description This is a helper function used to converted one year of MERRA data to a binary file
 #' @param year Year to convert
 #' @param listOfFiles list of MERRA files to convert
@@ -541,59 +669,73 @@ convMerraToBin<-function(in_path,out_path,date_seq,param){
 #' @param dimX X dimension of spatial grid
 #' @param dimY Y dimension of spatial grid
 #' @param out_path Path to write file to
-#'
-#'
-#'
+#' @param silent If true, no detailed output on handling of files is printed to console
+writeSingleYearFile<-function(year,listOfFiles,date_seq,param,timePerFile,dimX,dimY,out_path,silent=TRUE) {
 
-writeSingleYearFile<-function(year,listOfFiles,date_seq,param,timePerFile,dimX,dimY,out_path) {
+  count<-sum(year(date_seq)==year)
 
-      count<-sum(year(date_seq)==year)
-
-      print(paste("----------Working on year...",year,"----------"))
+  print(paste("----------Working on year...",year,"----------"))
 
 
-      if(!file.exists(paste(out_path,year,".bin",sep=""))) {
+  if(!file.exists(paste(out_path,year,".bin",sep=""))) {
 
-        length=count*timePerFile
+    length=count*timePerFile
 
-        cc<-0
-        listOfFilesRed <- listOfFiles[year(date_seq)==year]
-        out<-as.integer(rep(0,count*timePerFile*dimX*dimY))
+    cc<-0
+    listOfFilesRed <- listOfFiles[year(date_seq)==year]
+    out<-as.integer(rep(0,count*timePerFile*dimX*dimY))
 
-        locpos<-(0:(dimX*dimY-1))*length
-        cc<-0
-        reorder1<-((cc*timePerFile):(cc*timePerFile+timePerFile-1))+1
-        tt<-as.vector(mapply(sum_,locpos,list(reorder1),SIMPLIFY=TRUE))
+    locpos<-(0:(dimX*dimY-1))*length
+    cc<-0
+    reorder1<-((cc*timePerFile):(cc*timePerFile+timePerFile-1))+1
+    tt<-as.vector(mapply(sum_,locpos,list(reorder1),SIMPLIFY=TRUE))
 
-        for(k in c(1:length(listOfFilesRed))){
+    for(k in c(1:length(listOfFilesRed))){
 
-            t_start_=Sys.time()
+      t_start_=Sys.time()
+      if(!silent){
+        print(paste("working on ",listOfFilesRed[k]))
+      }
+      nc_file<-nc_open(listOfFilesRed[k])
+      dat<-aperm(ncvar_get(nc_file,param)*100,c(3,2,1))
+      dat<-as.vector(dat)
+      nc_close(nc_file)
 
-            print(paste("working on ",listOfFilesRed[k]))
+      out[tt+cc*timePerFile]<-as.integer(dat)
+      cc<-cc+1
 
-            nc_file<-nc_open(listOfFilesRed[k])
-            dat<-aperm(ncvar_get(nc_file,param)*100,c(3,2,1))
-            dat<-as.vector(dat)
-            nc_close(nc_file)
+      if(!silent){
+        print(paste(listOfFilesRed[k]," took ", (Sys.time()-t_start_)))
+      }
 
-            out[tt+cc*timePerFile]<-as.integer(dat)
-            cc<-cc+1
-            print(paste(listOfFilesRed[k]," took ", (Sys.time()-t_start_)))
+    }
 
-        }
+    con = file(paste(out_path,year,".bin",sep=""),open="wb")
 
-        con = file(paste(out_path,year,".bin",sep=""),open="wb")
+    writeBinLong(out, con,2)
 
-        writeBinLong(out, con,2)
-
-        close(con)
+    close(con)
 
 
 
-        }
+  }
 
 }
 
+
+
+#' Writes a very long vector to a binary file
+#'
+#' @description The R function writeBin is limited by 2^31-1 bytes. This function uses writeBin
+#' iteratively to be able to write longer files
+#' @param bytes The files to write
+#' @param connection The connection to write to
+#' @param size The element size in bytes
+#'
+#' @return
+#' @export
+#'
+#' @examples
 writeBinLong<-function(bytes,connection,size){
 
   maxL<-2^31-1
@@ -609,9 +751,90 @@ writeBinLong<-function(bytes,connection,size){
 
 }
 
-
+#' Helper function to sum up to numbers
+#'
+#' @description Adds two numbers
+#' @param a,b numbers to add
+#' @return the sum of the two numbers
 
 sum_<-function(a,b){
   return(a+b)
 }
+
+#' Creates a MERRA Test Data Set
+#'
+#' @description Creates the test-data set also available as data in the package
+#' @param dir Directory to save the test data set
+#' @param date_seq length of test data set
+#' @return Does not return anything. Writes, as side-effect, two files in the given directory: test_data.feater and MERRA_Test.Rdata, which contain the same information
+createTestDataSet<-function(dir,date_seq){
+
+
+
+  setwd(dir)
+  getMERRADataBox(-180,-90,180,90,
+                  date_seq,
+                  "T2M",
+                  "RE_EXTREME",
+                  "Re_extreme666!",
+                  FALSE)
+  start<-Sys.time()
+  filelist<-list.files(path=".",pattern = "MERRA")
+
+  df<-data.frame(matrix(nrow=(length(date_seq)*24),ncol=9))
+
+  lon_pos<-c(1,1,1,1,1,1,2,2,3,3)
+  lat_pos<-c(1,2,3,4,5,6,1,2,1,2)
+
+
+  if(!file.exists("testdata.feather")){
+
+    cnt<-1
+    for(file in filelist){
+
+      f<-file
+      print(f)
+
+      nc_file<-nc_open(f)
+      dat<-ncvar_get(nc_file,"T2M")
+      nc_close(nc_file)
+
+      rows<-cnt:(cnt+23)
+
+      for(j in 1:10){
+        df[rows, j]<-dat[lon_pos[j]  ,lat_pos[j]  ,]
+      }
+
+      cnt<-cnt+24
+    }
+
+    par(mfrow=c(1,1))
+    matplot(df-273.5,type="l")
+
+    xdim<-dim(dat)[1]
+    ydim<-dim(dat)[2]
+    tot_pos<-(lon_pos-1)*ydim+lat_pos
+
+    names(df)<-tot_pos
+    test_data_fin<-as_tibble(df) %>% gather(pos,val) %>% mutate(pos=as.numeric(pos))
+
+    write_feather(test_data_fin,path="testdata.feather")
+    MERRA_Test<-test_data_fin
+    save(MERRA_Test,file="MERRA_Test.RData")
+    end<-Sys.time()
+    print(end-start)
+  }
+
+
+
+  test_data<-read_feather("testdata.feather")
+
+  return(test_data)
+
+}
+
+
+
+
+
 

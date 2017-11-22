@@ -4,10 +4,20 @@
 \alias{getMERRADataBox}
 \title{Get MERRA Files for a given spatial box}
 \usage{
-getMERRADataBox(lon1, lat1, lon2, lat2, period, params, user, pass,
-  runParallel = TRUE)
+getMERRADataBox(targetPath = "", lon1, lat1, lon2, lat2, period, params, user,
+  pass, runParallel = TRUE, outputofParallelProc = "")
 }
 \arguments{
+\item{targetPath}{Path to save MERRA ncdf files to}
+
+\item{lon1}{Box coordinate}
+
+\item{lat1}{Box coordinate}
+
+\item{lon2}{Box coordinate}
+
+\item{lat2}{Box coordinate}
+
 \item{period}{A vector with all dates to download (daily entries in the vector).}
 
 \item{params}{The respective parameter to be downloaded}
@@ -16,7 +26,7 @@ getMERRADataBox(lon1, lat1, lon2, lat2, period, params, user, pass,
 
 \item{runParallel}{if true, download uses available cores to parallelize downloads}
 
-\item{lon, lat}{center of box to download from. data are downloaded from box lon-0.5,lat-0.625,lon+0.5,lat+0.625}
+\item{outputOfParallelProc}{If different from "", output files are written to the specified directory}
 }
 \value{
 Does not return anything, but writes, as a side-effect, the downloaded files to disk.

@@ -8,6 +8,8 @@ createTestDataSet(dir, date_seq)
 }
 \arguments{
 \item{dir}{Directory to save the test data set}
+
+\item{date_seq}{length of test data set}
 }
 \value{
 Does not return anything. Writes, as side-effect, two files in the given directory: test_data.feater and MERRA_Test.Rdata, which contain the same information

@@ -4,7 +4,7 @@
 \alias{readBinMult}
 \title{Reads multiple bytes from a binary file}
 \usage{
-readBinMult(con, what, size, elements, endian)
+readBinMult(con, what, size, elements)
 }
 \arguments{
 \item{con}{Binary connection to file}

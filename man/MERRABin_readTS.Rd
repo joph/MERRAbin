@@ -2,13 +2,22 @@
 % Please edit documentation in R/MERRA_functions.R
 \name{MERRABin_readTS}
 \alias{MERRABin_readTS}
+\alias{MERRABin_readTS}
 \title{Reads binary encoded timeseries from disk}
 \arguments{
 \item{posTS}{Position of timeseries. This is an internal representation, it is better to use getClosestTS}
+
+\item{posTS}{Position of timeseries. This is an internal representation, it is better to use getClosestTS}
+
+\item{years}{Years to read from disk}
 }
 \value{
+The complete timeseries as vector
+
 The complete timeseries as vector
 }
 \description{
 Reads binary encoded timeseries from disk
+
+Reads binary encoded timeseries from disk forgiven years
 }

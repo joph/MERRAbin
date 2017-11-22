@@ -11,6 +11,10 @@ readParamMerra(ncname, pname, lon, lat)
 \item{ncname}{is the name of the MERRA file}
 
 \item{pname}{is the name of the parameter to read}
+
+\item{lon}{Longitude position to read from}
+
+\item{lat}{Latitude position to read from}
 }
 \value{
 a tibble with the interpolated timeseries at the given point. Also, time is added
