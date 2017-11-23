@@ -34,12 +34,9 @@ getFileMerraFinal<-function(i,fileNameIn,fileNameOut,user,pass){
 #' @param params The respective parameter to be downloaded
 #' @param user,pass username and password for the downloadserver get one at: https://urs.earthdata.nasa.gov/home
 #' @param runParallel if true, download uses available cores to parallelize downloads
+#' @param outputOfParallelProc If different from "", output files are written to the specified directory
 #' @return Does not return anything, but writes, as a side-effect, the downloaded files to disk.
-getMERRADataBox<-function(lon1,lat1,lon2,lat2,period,params,user,pass,runParallel=TRUE){
-  original<-getwd()
-  #dir<-paste("./",lon1,"_",lat1,"_",lon2,"_",lat2,sep="")
-  #dir.create(file.path(getwd(), dir), showWarnings = FALSE)
-  #setwd(dir)
+getMERRADataBox<-function(targetPath="",lon1,lat1,lon2,lat2,period,params,user,pass,runParallel=TRUE,outputofParallelProc=""){
 
   targetPath<-addSlash(targetPath)
 
