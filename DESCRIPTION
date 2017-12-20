@@ -17,7 +17,8 @@ Imports:
     lubridate,
     dplyr,
     magrittr,
-    sp
+    sp,
+    zoo
 Depends:
     ncdf4,
     tibble,
@@ -27,5 +28,6 @@ Depends:
     lubridate,
     dplyr,
     magrittr,
-    sp
+    sp,
+    zoo
 RoxygenNote: 6.0.1

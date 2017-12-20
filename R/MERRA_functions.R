@@ -59,9 +59,10 @@ getMERRADataBox<-function(targetPath="",lon1,lat1,lon2,lat2,period,params,user,p
   fileNamesIn<-rep("",length(period))
   fileNamesOut<-rep("",length(period))
 
-  print(paste("downloading:",lon1,lat1,lon2,lat2))
+  print(paste("downloading:",lon1,lat1,lon2,lat2,params))
 
   for(i in 1:length(period)){
+
 
     fileName<-paste(targetPath,
                     "MERRA_",lon1,"_",lat1,"_",lon2,"_",lat2,"_",variables,"_",dates[i],".nc4",sep="")
@@ -81,7 +82,7 @@ getMERRADataBox<-function(targetPath="",lon1,lat1,lon2,lat2,period,params,user,p
     }
 
 
-
+    if(params!="swgdn"){
     url<-paste("http://goldsmr4.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FMERRA2%2FM2I1NXASM.5.12.4%2F",
                year[i],"%2F",
                month[i],"%2FMERRA2_",fV,".inst1_2d_asm_Nx.",
@@ -89,6 +90,19 @@ getMERRADataBox<-function(targetPath="",lon1,lat1,lon2,lat2,period,params,user,p
                "&LABEL=MERRA2_",fV,".inst1_2d_asm_Nx.",dates[i],
                ".SUB.nc4&SHORTNAME=M2I1NXASM&SERVICE=SUBSET_MERRA2&VERSION=1.02&LAYERS=&VARIABLES=",variables,
                sep="")
+    }else{
+
+    url<-paste("http://goldsmr4.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FMERRA2%2FM2T1NXLFO.5.12.4%2F",
+               year[i],"%2F",
+               month[i],"%2FMERRA2_",fV,".tavg1_2d_lfo_Nx.",
+               dates[i],".nc4&FORMAT=bmM0Lw&BBOX=",boxes,
+               "&LABEL=MERRA2_",fV,".tavg1_2d_lfo_Nx.",dates[i],
+               ".SUB.nc4&SHORTNAME=M2T1NXLFO&SERVICE=SUBSET_MERRA2&VERSION=1.02&LAYERS=&VARIABLES=",variables,
+               sep="")
+
+    print(url)
+
+    }
 
 
     fileNamesIn[i]<-url
@@ -96,7 +110,7 @@ getMERRADataBox<-function(targetPath="",lon1,lat1,lon2,lat2,period,params,user,p
   }
   if(runParallel){
 
-    no_cores <- 10
+    no_cores <-8
 
     # Initiate cluster
     cl <- parallel::makeCluster(no_cores)
@@ -204,14 +218,15 @@ MERRABin<- setRefClass("MERRABin",
                                    timePerFile="integer",
                                    sizePerYear="vector",
                                    timeDate="POSIXt",
-                                   spatialPoints="SpatialPoints"
+                                   spatialPoints="SpatialPoints",
+                                   multI="integer"
                        ),
 
                        methods=list(
 
                          initialize=function(file){
 
-
+                           file<-addSlash(file)
 
                            .self$con<-file(paste(file,"meta.bin",sep=""),open="rb")
 
@@ -270,6 +285,10 @@ MERRABin<- setRefClass("MERRABin",
                            .self$counts<-readBinMult(con,"integer",8,y)
                            printl("Days per year:",head(.self$counts))
 
+                           ####multI
+                           .self$multI<-readBin(con,"integer",8)
+                           .self$multI<-.self$multI[1]
+
                            ####sizePerYear
                            .self$sizePerYear<-.self$timePerFile*.self$counts*.self$byteSize
                            #print(head(.self$sizePerYear))
@@ -294,7 +313,8 @@ MERRABin<- setRefClass("MERRABin",
 
                          getDateTime=function(){
 
-                           return(as.POSIXct(.self$time,origin=as.POSIXct("1980-01-01 00:00",tz="UTC")))
+                           return(as.POSIXct(.self$time,
+                                             origin=as.POSIXct("1970-01-01 00:00",tz="UTC")))
 
                          },
 
@@ -318,6 +338,72 @@ MERRABin$methods(
   })
 
 
+#' Finds the closest MERRA points for all given Lons/Lats
+#'
+#' @name MERRABin_getCorrespondingLonLat
+#' @param dat dataframe which contains at least a column lon and a column lat
+#' @return Returns dat with added column MLon and MLat, which indicates the associated MERRA Point
+NULL
+
+MERRABin$methods(
+
+  getCorrespondingLonLat=function(dat){
+
+    no_cores <-parallel::detectCores() - 1
+
+    # Initiate cluster
+    cl <- parallel::makeCluster(no_cores)
+    parallel::clusterEvalQ(cl,library(magrittr))
+    MerraLonsLats<-parallel::clusterMap(cl,
+                                       .self$getMERRAPoint,
+                                       dat$lon,
+                                       dat$lat,
+                                       SIMPLIFY=FALSE)
+    parallel::stopCluster(cl)
+    #MerraLonsLats<-mapply(.self$getMERRAPoint,
+    #                      dat$lon,
+    #                      dat$lat)
+    m<-t(matrix(unlist(MerraLonsLats),
+                nrow=2,
+                ncol=nrow(dat)))
+
+    dat %>% dplyr::mutate(MLon=m[,1],MLat=m[,2]) %>%
+      return()
+    })
+
+
+#' Returns a timeseries with aggregated capacities per merra point
+#' timeseries is extended to the timeseries covered by this MERRAbin object
+#'
+#' @name MERRABin_getAggregatedCapacitiesTimeSeries
+#' @param dat dataframe which contains at least a column lon, a column lat, a column date and a column cap
+#' @return Returns the same dateframe, but capacities are aggregated by merra point and the timeseries is extended to the timeseries of this MERRAbin object
+NULL
+
+MERRABin$methods(
+
+  getAggregatedCapacitiesTimeSeries=function(dat){
+
+    wind_dat_red_agg <- dat %>% group_by(MLon,MLat) %>% mutate(cumsum=cumsum(cap)) %>%
+      ungroup() %>% mutate(datetime=as.POSIXct(paste(date,"00:00:00",sep=""),tz="UTC"))
+
+    wind_dat_red_agg_red<-wind_dat_red_agg[!(duplicated(wind_dat_red_agg[,c(1,2,6)])),]
+
+    d_seq<-mb$timeDate
+    MLonLat<-unique(wind_dat_red_agg_red[,c(1,2)])
+    MLonLat_<-MLonLat[rep(1:nrow(MLonLat),each=length(d_seq)),]
+    td_fin<-tibble(MLon=MLonLat_$MLon,MLat=MLonLat_$MLat,datetime=rep(d_seq,nrow(MLonLat)),val=0)
+    full_ts_expansion<-full_join(td_fin,wind_dat_red_agg_red)
+
+
+    full_ts_expansion %>%
+      mutate(cumsumInter=zoo::na.locf(cumsum, fromLast = TRUE)) %>% filter(year(datetime)>1999) %>%
+      arrange(MLon,MLat,datetime) %>%  return()
+
+
+  })
+
+
 #' Reads binary encoded timeseries from disk forgiven years
 #'
 #' @name MERRABin_readTS
@@ -332,7 +418,7 @@ MERRABin$methods(
     ts<-c()
     for(y in years){
       #  for(i in 2:3){
-
+      #print(y)
       i<-which(.self$years==y)
       if(length(i)==0){
         print("y is not in dataset, aborting!")
@@ -348,8 +434,9 @@ MERRABin$methods(
                        what="integer",
                        size=.self$byteSize,
                        .self$sizePerYear[i]/.self$byteSize
-      )/100
+      )/multI
       ts<-c(ts,ts_)
+      #print(length(ts_))
       close(con_)
     }
 
@@ -388,20 +475,20 @@ MERRABin$methods(
 
   getClosestTSYears=function(lon,lat,years){
     t1<-Sys.time()
-    sel<-.self$grid %>% dplyr::filter(Lon<(lon+1)&Lon>(lon-1))
-    if(nrow(sel)==0){
-      dists<-distm(.self$grid,
-                   c(lon, lat), fun = distHaversine)
-      d<-.self$grid %>% slice(which(dists==min(dists)))
+    #sel<-.self$grid %>% dplyr::filter(Lon<(lon+1)&Lon>(lon-1))
+    #if(nrow(sel)==0){
+    #  dists<-distm(.self$grid,
+    #               c(lon, lat), fun = distHaversine)
+    #  d<-.self$grid %>% slice(which(dists==min(dists)))
 
-    }else{
-      dists<-distm(sel,
-                   c(lon, lat), fun = distHaversine)
-      d<-sel %>% slice(which(dists==min(dists)))
-    }
-
+    #}else{
+    #  dists<-distm(sel,
+    #               c(lon, lat), fun = distHaversine)
+    #  d<-sel %>% slice(which(dists==min(dists)))
+    #}
+    d<-.self$getMERRAPoint(lon,lat)
     #print(paste(d$Lon,d$Lat))
-    tsInd<-which(.self$grid$Lon==d$Lon&.self$grid$Lat==d$Lat)
+    tsInd<-which(.self$grid$Lon==d[1]&.self$grid$Lat==d[2])
     #print(tsInd)
     ts<-readTSYears(tsInd,years)
     t2<-Sys.time()
@@ -483,6 +570,53 @@ MERRABin$methods(
 
 
 
+
+
+MERRABin$methods(
+
+
+#' Returns the closest MERRA Point
+#' @description returns the coordinates of the MERRA point which is closest to the given point
+#' @param lon Longitude of point to assess
+#' @param lat Latitude of point to assess
+#'
+#' @return A vector where the first element is the longitude and the second element is the latitude of the closest MERRA point
+#' @export
+#'
+#' @examples
+  getMERRAPoint=function(lon,lat){
+    sel<-.self$grid %>% dplyr::filter(Lon<(lon+0.26)&
+                                      Lon>(lon-0.26)&
+                                      Lat<(lat+0.26)&
+                                      Lat>(lat-0.26)
+                                      )
+
+    if(nrow(sel)==0){
+      print("Point not inside grid. This may take some time!")
+      dists<-distm(.self$grid,
+                   c(lon, lat), fun = distHaversine)
+      d<-.self$grid %>% dplyr::slice(which(dists==min(dists)))
+
+
+    }else{
+
+      if(nrow(sel)>1){
+        dists<-distm(sel,
+                     c(lon, lat), fun = distHaversine)
+        d<-sel %>% dplyr::slice(which(dists==min(dists)))
+        }else{
+      d<-sel
+        }
+    }
+    return(c(d$Lon,d$Lat))
+
+
+  }
+
+)
+
+
+
 #' Prints to element to console
 #'
 #' @description Prints two elements to the console, concatenating them
@@ -542,10 +676,14 @@ addSlash<-function(targetPath){
 #' @param out_path path where output binary files should be located
 #' @param date_seq sequence of dates which should be converted
 #' @param param Parameter in MERRA file that should be converted
+#' @param multI multiplicator for variable (to be used if numbers after comma are relevant)
 #' @param silent If true, no detailed output on handling of files is printed to console
-convMerraToBin<-function(in_path,out_path,date_seq,param,silent=TRUE){
+convMerraToBin<-function(in_path,out_path,date_seq,param,multI,silent=TRUE){
 
   print(paste("Starting conversion of MERRA to Binary Files"))
+  print(in_path)
+  print(out_path)
+  print(param)
 
 
   in_path<-addSlash(in_path)
@@ -583,6 +721,8 @@ convMerraToBin<-function(in_path,out_path,date_seq,param,silent=TRUE){
   dimY<-dim(temp)[2]
   timePerFile<-dim(temp)[3]
 
+
+
   lons<-ncvar_get(nc_file,"lon")
   lats<-ncvar_get(nc_file,"lat")
   time<-ncvar_get(nc_file,"time")
@@ -617,6 +757,7 @@ convMerraToBin<-function(in_path,out_path,date_seq,param,silent=TRUE){
 
   #time
   date_seq_h<-seq(date_seq[1],date_seq[length(date_seq)]+3600*23,by="h")
+
   writeBin(as.integer(date_seq_h),con,8)
 
 
@@ -635,6 +776,9 @@ convMerraToBin<-function(in_path,out_path,date_seq,param,silent=TRUE){
   td<-tibble(dat=date_seq,year=year(date_seq)) %>% group_by(year) %>% summarize(n=n())
   writeBin(as.vector(td$n),con,8)
 
+  ####multI
+  writeBin(as.integer(multI),con,8)
+
   close(con)
 
 
@@ -649,7 +793,8 @@ convMerraToBin<-function(in_path,out_path,date_seq,param,silent=TRUE){
          list(timePerFile),
          list(dimX),
          list(dimY),
-         list(out_path))
+         list(out_path),
+         list(multI))
 
 
 
@@ -666,8 +811,9 @@ convMerraToBin<-function(in_path,out_path,date_seq,param,silent=TRUE){
 #' @param dimX X dimension of spatial grid
 #' @param dimY Y dimension of spatial grid
 #' @param out_path Path to write file to
+#' @param multVar multiplicator for variable (to be used if numbers after comma are relevant)
 #' @param silent If true, no detailed output on handling of files is printed to console
-writeSingleYearFile<-function(year,listOfFiles,date_seq,param,timePerFile,dimX,dimY,out_path,silent=TRUE) {
+writeSingleYearFile<-function(year,listOfFiles,date_seq,param,timePerFile,dimX,dimY,out_path,multVar,silent=TRUE) {
 
   count<-sum(year(date_seq)==year)
 
@@ -694,8 +840,9 @@ writeSingleYearFile<-function(year,listOfFiles,date_seq,param,timePerFile,dimX,d
         print(paste("working on ",listOfFilesRed[k]))
       }
       nc_file<-nc_open(listOfFilesRed[k])
-      dat<-aperm(ncvar_get(nc_file,param)*100,c(3,2,1))
+      dat<-aperm(ncvar_get(nc_file,param)*multVar,c(3,2,1))
       dat<-as.vector(dat)
+      dat[is.na(dat)]<-0
       nc_close(nc_file)
 
       out[tt+cc*timePerFile]<-as.integer(dat)
@@ -830,7 +977,187 @@ createTestDataSet<-function(dir,date_seq){
 
 }
 
+#' Title
+#'
+#' @param lon
+#' @param lat
+#' @param u10m
+#' @param u50m
+#' @param v10m
+#' @param v50m
+#' @param disph
+#' @param speeds_in
+#' @param power_out
+#' @param nmbTurbines
+#'
+#' @return
+#' @export
+#'
+#' @examples
+windOutput<-function(lon,lat,u10m,u50m,v10m,v50m,disph,speeds_in,power_out,nmbTurbines){
+  print(paste("Calculating wind power output at ",lon,lat))
+  u10m<-u10m$getClosestTS(lon,lat)
+  u50m<-u50m$getClosestTS(lon,lat)
+  v10m<-v10m$getClosestTS(lon,lat)
+  v50m<-v50m$getClosestTS(lon,lat)
+  disph<-disph$getClosestTS(lon,lat)
 
+
+  v10<-sqrt(u10m^2+v10m^2)
+  v50<-sqrt(u50m^2+v50m^2)
+
+  wind_interpolated<-power_law_interpolation(v10,v50,10,50,disph,100)
+  hist(wind_interpolated)
+  powercalc(speeds_in,power_out,wind_interpolated,nmbTurbines) %>%
+    return()
+
+
+}
+
+
+#' Title
+#'
+#' @param v1
+#' @param v2
+#' @param h1
+#' @param h2
+#' @param dH
+#' @param h
+#'
+#' @return
+#' @export
+#'
+#' @examples
+power_law_interpolation<-function(v1,v2,h1,h2,dH,h){
+  h2<-h2+dH
+  h1<-h1+dH
+  a <- (log(v2)-log(v1))/(log(h2)-log(h1))
+  vz<-v2*(h/h2)^a
+
+  return(vz)
+}
+
+#' Title
+#'
+#' @param wIn
+#' @param pOut
+#' @param windSpeeds
+#' @param numberTurbines
+#'
+#' @return
+#' @export
+#'
+#' @examples
+powercalc<-function(wIn,pOut,windSpeeds,numberTurbines){
+  func <- approxfun(wIn, pOut)
+  TApl1 <- sapply(windSpeeds, FUN = "func")
+  TApwr1 <- numberTurbines*TApl1
+  TApwr1[is.na(TApwr1)]<-0
+  return(TApwr1)
+}
+
+
+#' Title
+#'
+#' @param fileOPSD
+#'
+#' @return
+#' @export
+#'
+#' @examples
+getOPSDTS<-function(fileOPSD){
+  if(!file.exists(fileOPSD)){
+
+    dir.create(dirname(fileOPSD), showWarnings = FALSE)
+    download.file("https://data.open-power-system-data.org/time_series/2016-07-14/timeseries60min_stacked.csv",
+                destfile=fileOPSD)
+  }
+
+  tab_<-readr::read_delim(fileOPSD,delim=",")
+
+  return(tab_)
+
+}
+
+#' Title
+#'
+#' @param fileOPSD
+#'
+#' @return
+#' @export
+#'
+#' @examples
+getOPSDRenPowerPlantsDE<-function(fileOPSD){
+
+  if(!file.exists(fileOPSD)){
+
+    dir.create(dirname(fileOPSD), showWarnings = FALSE)
+    download.file("https://data.open-power-system-data.org/renewable_power_plants/2016-10-21/renewable_power_plants_DE.csv",
+                  destfile=fileOPSD)
+  }
+
+  tab_<-readr::read_delim(fileOPSD,delim=",")
+
+  return(tab_)
+
+
+
+}
+
+#' Title
+#'
+#' @param tab_
+#' @param variable_
+#' @param region_
+#' @param attribute_
+#'
+#' @return
+#' @export
+#'
+#' @examples
+getOPSDParam<-function(tab_,variable_,region_,attribute_){
+
+  tab_ %>% dplyr::filter(variable %in% variable_ &
+                         region %in% region_ &
+                         attribute %in% attribute_) %>% return()
+
+}
+
+#' Title
+#'
+#' @param tab_
+#'
+#' @return
+#' @export
+#'
+#' @examples
+getOPSDvariables<-function(tab_){
+  return(unique(tab_$variable))
+}
+
+#' Title
+#'
+#' @param tab_
+#'
+#' @return
+#' @export
+#'
+#' @examples
+getOPSDregion<-function(tab_){
+  return(unique(tab_$region))
+}
+
+#' Title
+#'
+#' @param tab_
+#'
+#' @return
+#' @export
+#'
+#' @examples
+getOPSDattribute<-function(tab_){
+  return(unique(tab_$attribute))
+}
 
 
 
