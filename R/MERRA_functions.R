@@ -1371,7 +1371,7 @@ getOPSDattribute<-function(tab_){
 #'
 #' @description Searches for dataset containing given variables
 #' @param varlist data frame of datasets and contained variables
-#' @param dim requested dataset dimension. 2d or 3d, however only 2d support tested at the moment.
+#' @param dim requested dataset dimension. 2d or 3d, however only 2d support tested.
 #' @param avg if true, time averaged variables will be prioritised
 #' @param varn name of the requested variable
 #' @return name of the corresponding dataset
