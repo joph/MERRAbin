@@ -35,104 +35,309 @@ getFileMerraFinal<-function(i,fileNameIn,fileNameOut,user,pass){
 #' @param user,pass username and password for the downloadserver get one at: https://urs.earthdata.nasa.gov/home
 #' @param runParallel if true, download uses available cores to parallelize downloads
 #' @param outputOfParallelProc If different from "", output files are written to the specified directory
+#' @param dim requested dataset dimension. 2d or 3d, however only 2d support tested at the moment.
+#' @param avg if true, time averaged variables will be prioritised
 #' @return Does not return anything, but writes, as a side-effect, the downloaded files to disk.
-getMERRADataBox<-function(targetPath="",lon1,lat1,lon2,lat2,period,params,user,pass,runParallel=TRUE,outputofParallelProc=""){
+getMERRADataBox<-function (targetPath = "", lon1, lat1, lon2, lat2, period, params, 
+    user, pass, runParallel = TRUE, outputofParallelProc = "", dim, avg) 
+{   
+    params<-toupper(params)
+    targetPath <- addSlash(toupper(targetPath))
+    dir.create(targetPath, recursive = TRUE, showWarnings = FALSE)
+    dates <- period %>% format(format = "%Y%m%d")
+    year <- period %>% format(format = "%Y") %>% as.numeric()
+    month <- period %>% format(format = "%m")
+    variables <- sapply(params, paste, "%2C", sep = "") %>% paste(collapse = "") %>%
+        substr(1, nchar(.) - 3)
+    boxes <- c(lat1, lon1, lat2, lon2) %>% sapply(paste, "%2C",
+        sep = "") %>% paste(collapse = "") %>% substr(1, nchar(.) -
+        3)
 
-  targetPath<-addSlash(targetPath)
+    print(paste("downloading:", lon1, lat1, lon2, lat2, params))
 
-  dir.create(targetPath, recursive=TRUE,showWarnings = FALSE)
+    
+    varlist<-data.frame(c("inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", 
+  "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", 
+  "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", 
+  "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", 
+  "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", 
+  "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", "inst1_2d_asm_Nx", 
+  "inst1_2d_int_Nx", "inst1_2d_int_Nx", "inst1_2d_int_Nx", "inst1_2d_int_Nx", 
+  "inst1_2d_int_Nx", "inst1_2d_int_Nx", "inst1_2d_int_Nx", "inst1_2d_int_Nx", 
+  "inst1_2d_lfo_Nx", "inst1_2d_lfo_Nx", "inst1_2d_lfo_Nx", "inst1_2d_lfo_Nx", 
+  "inst1_2d_lfo_Nx", "statD_2d_slv_Nx", "statD_2d_slv_Nx", "statD_2d_slv_Nx", 
+  "statD_2d_slv_Nx", "statD_2d_slv_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", "tavg1_2d_adg_Nx", 
+  "tavg1_2d_adg_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", 
+  "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_aer_Nx", "tavg1_2d_chm_Nx", 
+  "tavg1_2d_chm_Nx", "tavg1_2d_chm_Nx", "tavg1_2d_chm_Nx", "tavg1_2d_chm_Nx", 
+  "tavg1_2d_chm_Nx", "tavg1_2d_chm_Nx", "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", 
+  "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", 
+  "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", 
+  "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", 
+  "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", "tavg1_2d_csp_Nx", 
+  "tavg1_2d_csp_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", 
+  "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_flx_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", "tavg1_2d_int_Nx", 
+  "tavg1_2d_lfo_Nx", "tavg1_2d_lfo_Nx", "tavg1_2d_lfo_Nx", "tavg1_2d_lfo_Nx", 
+  "tavg1_2d_lfo_Nx", "tavg1_2d_lfo_Nx", "tavg1_2d_lfo_Nx", "tavg1_2d_lfo_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", 
+  "tavg1_2d_lnd_Nx", "tavg1_2d_lnd_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", 
+  "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", 
+  "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", 
+  "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", 
+  "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", 
+  "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_ocn_Nx", "tavg1_2d_rad_Nx", 
+  "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", 
+  "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", 
+  "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", 
+  "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", 
+  "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", 
+  "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", 
+  "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", 
+  "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", 
+  "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_rad_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx", 
+  "tavg1_2d_slv_Nx", "tavg1_2d_slv_Nx"),c("DISPH", "PS", "QV10M", "QV2M", "SLP", "T10M", "T2M", "TO3", 
+  "TOX", "TQI", "TQL", "TQV", "TROPPB", "TROPPT", "TROPPV", "TROPQ", 
+  "TROPT", "TS", "U10M", "U2M", "U50M", "V10M", "V2M", "V50M", 
+  "CPT", "KE", "MASS", "THV", "TOX", "TQI", "TQL", "TQV", "HLML", 
+  "PS", "QLML", "SPEEDLML", "TLML", "HOURNORAIN", "T2MMAX", "T2MMEAN", 
+  "T2MMIN", "TPRECMAX", "BCDP001", "BCDP002", "BCEM001", "BCEM002", 
+  "BCEMAN", "BCEMBB", "BCEMBF", "BCHYPHIL", "BCSD001", "BCSD002", 
+  "BCSV001", "BCSV002", "BCWT001", "BCWT002", "DUAERIDX", "DUDP001", 
+  "DUDP002", "DUDP003", "DUDP004", "DUDP005", "DUEM001", "DUEM002", 
+  "DUEM003", "DUEM004", "DUEM005", "DUEXTTFM", "DUSCATFM", "DUSD001", 
+  "DUSD002", "DUSD003", "DUSD004", "DUSD005", "DUSV001", "DUSV002", 
+  "DUSV003", "DUSV004", "DUSV005", "DUWT001", "DUWT002", "DUWT003", 
+  "DUWT004", "DUWT005", "OCDP001", "OCDP002", "OCEM001", "OCEM002", 
+  "OCEMAN", "OCEMBB", "OCEMBF", "OCEMBG", "OCHYPHIL", "OCSD001", 
+  "OCSD002", "OCSV001", "OCSV002", "OCWT001", "OCWT002", "SO2EMAN", 
+  "SO2EMBB", "SO2EMVE", "SO2EMVN", "SO4EMAN", "SSAERIDX", "SSDP001", 
+  "SSDP002", "SSDP003", "SSDP004", "SSDP005", "SSEM001", "SSEM002", 
+  "SSEM003", "SSEM004", "SSEM005", "SSEXTTFM", "SSSCATFM", "SSSD001", 
+  "SSSD002", "SSSD003", "SSSD004", "SSSD005", "SSSV001", "SSSV002", 
+  "SSSV003", "SSSV004", "SSSV005", "SSWT001", "SSWT002", "SSWT003", 
+  "SSWT004", "SSWT005", "SUDP001", "SUDP002", "SUDP003", "SUDP004", 
+  "SUEM001", "SUEM002", "SUEM003", "SUEM004", "SUPMSA", "SUPSO2", 
+  "SUPSO4AQ", "SUPSO4G", "SUPSO4WT", "SUSD001", "SUSD002", "SUSD003", 
+  "SUSD004", "SUSV001", "SUSV002", "SUSV003", "SUSV004", "SUWT001", 
+  "SUWT002", "SUWT003", "SUWT004", "BCANGSTR", "BCCMASS", "BCEXTTAU", 
+  "BCFLUXU", "BCFLUXV", "BCSCATAU", "BCSMASS", "DMSCMASS", "DMSSMASS", 
+  "DUANGSTR", "DUCMASS", "DUCMASS25", "DUEXTT25", "DUEXTTAU", "DUFLUXU", 
+  "DUFLUXV", "DUSCAT25", "DUSCATAU", "DUSMASS", "DUSMASS25", "OCANGSTR", 
+  "OCCMASS", "OCEXTTAU", "OCFLUXU", "OCFLUXV", "OCSCATAU", "OCSMASS", 
+  "SO2CMASS", "SO2SMASS", "SO4CMASS", "SO4SMASS", "SSANGSTR", "SSCMASS", 
+  "SSCMASS25", "SSEXTT25", "SSEXTTAU", "SSFLUXU", "SSFLUXV", "SSSCAT25", 
+  "SSSCATAU", "SSSMASS", "SSSMASS25", "SUANGSTR", "SUEXTTAU", "SUFLUXU", 
+  "SUFLUXV", "SUSCATAU", "TOTANGSTR", "TOTEXTTAU", "TOTSCATAU", 
+  "COCL", "COEM", "COLS", "COPD", "COSC", "LWI", "TO3", "ISCCPALB", 
+  "ISCCPCLDFRC", "MDSCLDFRCH2O", "MDSCLDFRCHI", "MDSCLDFRCICE", 
+  "MDSCLDFRCLO", "MDSCLDFRCMID", "MDSCLDFRCTTL", "MDSCLDSZH20", 
+  "MDSCLDSZICE", "MDSCLDTOPPS", "MDSH2OPATH", "MDSICEPATH", "MDSOPTHCKH2O", 
+  "MDSOPTHCKH2OLG", "MDSOPTHCKICE", "MDSOPTHCKICELG", "MDSOPTHCKTTL", 
+  "MDSOPTHCKTTLLG", "BSTAR", "CDH", "CDM", "CDQ", "CN", "DISPH", 
+  "EFLUX", "EVAP", "FRCAN", "FRCCN", "FRCLS", "FRSEAICE", "GHTSKIN", 
+  "HFLUX", "HLML", "NIRDF", "NIRDR", "PBLH", "PGENTOT", "PRECANV", 
+  "PRECCON", "PRECLSC", "PRECSNO", "PRECTOT", "PRECTOTCORR", "PREVTOT", 
+  "QLML", "QSH", "QSTAR", "RHOA", "RISFC", "SPEED", "SPEEDMAX", 
+  "TAUGWX", "TAUGWY", "TAUX", "TAUY", "TCZPBL", "TLML", "TSH", 
+  "TSTAR", "ULML", "USTAR", "VLML", "Z0H", "Z0M", "AUTCNVRN", "BKGERR", 
+  "COLCNVRN", "COLCNVSN", "CUCNVCI", "CUCNVCL", "CUCNVRN", "DHDT_ANA", 
+  "DHDT_BKG", "DHDT_CUF", "DHDT_DYN", "DHDT_FRI", "DHDT_GWD", "DHDT_MST", 
+  "DHDT_ORO", "DHDT_PHY", "DHDT_RAD", "DHDT_RAY", "DHDT_RES", "DHDT_TRB", 
+  "DKDT_ANA", "DKDT_BKG", "DKDT_DYN", "DKDT_GWD", "DKDT_GWDRES", 
+  "DKDT_INT", "DKDT_MST", "DKDT_ORO", "DKDT_PHY", "DKDT_PHYPHY", 
+  "DKDT_RAY", "DKDT_SRF", "DKDT_TOP", "DKDT_TRB", "DMDT_ANA", "DMDT_DYN", 
+  "DMDT_PHY", "DOXDT_ANA", "DOXDT_CHM", "DOXDT_DYN", "DOXDT_FIL", 
+  "DOXDT_PHY", "DPDT_ANA", "DPDT_DYN", "DPDT_PHY", "DQIDT_ANA", 
+  "DQIDT_DYN", "DQIDT_FIL", "DQIDT_MST", "DQIDT_PHY", "DQLDT_ANA", 
+  "DQLDT_DYN", "DQLDT_FIL", "DQLDT_MST", "DQLDT_PHY", "DQVDT_ANA", 
+  "DQVDT_CHM", "DQVDT_DYN", "DQVDT_FIL", "DQVDT_MST", "DQVDT_PHY", 
+  "DQVDT_TRB", "DTHDT_ANA", "DTHDT_DYN", "DTHDT_PHY", "EVAP", "EVPCL", 
+  "EVPRN", "FRZCL", "FRZRN", "HFLUX", "LSCNVCI", "LSCNVCL", "LSCNVRN", 
+  "LWGNET", "LWTNET", "PRECCU", "PRECLS", "PRECSN", "QTFILL", "SDMCI", 
+  "SUBCI", "SUBSN", "SWNETSRF", "SWNETTOA", "UFLXCPT", "UFLXKE", 
+  "UFLXPHI", "UFLXQI", "UFLXQL", "UFLXQV", "VFLXCPT", "VFLXKE", 
+  "VFLXPHI", "VFLXQI", "VFLXQL", "VFLXQV", "LWGAB", "PARDF", "PARDR", 
+  "PRECCUCORR", "PRECLSCORR", "PRECSNOCORR", "SWGDN", "SWLAND", 
+  "BASEFLOW", "ECHANGE", "EVLAND", "EVPINTR", "EVPSBLN", "EVPSOIL", 
+  "EVPTRNS", "FRSAT", "FRSNO", "FRUNST", "FRWLT", "GHLAND", "GRN", 
+  "GWETPROF", "GWETROOT", "GWETTOP", "LAI", "LHLAND", "LWLAND", 
+  "PARDFLAND", "PARDRLAND", "PRECSNOLAND", "PRECTOTLAND", "PRMC", 
+  "QINFIL", "RUNOFF", "RZMC", "SFMC", "SHLAND", "SMLAND", "SNODP", 
+  "SNOMAS", "SPLAND", "SPSNOW", "SPWATR", "SWLAND", "TELAND", "TPSNOW", 
+  "TSAT", "TSOIL1", "TSOIL2", "TSOIL3", "TSOIL4", "TSOIL5", "TSOIL6", 
+  "TSURF", "TUNST", "TWLAND", "TWLT", "WCHANGE", "EFLUXICE", "EFLUXWTR", 
+  "FRSEAICE", "HFLUXICE", "HFLUXWTR", "LWGNTICE", "LWGNTWTR", "PRECSNOOCN", 
+  "QV10M", "RAINOCN", "SWGNTICE", "SWGNTWTR", "T10M", "TAUXICE", 
+  "TAUXWTR", "TAUYICE", "TAUYWTR", "TSKINICE", "TSKINWTR", "U10M", 
+  "V10M", "ALBEDO", "ALBNIRDF", "ALBNIRDR", "ALBVISDF", "ALBVISDR", 
+  "CLDHGH", "CLDLOW", "CLDMID", "CLDTOT", "EMIS", "LWGAB", "LWGABCLR", 
+  "LWGABCLRCLN", "LWGEM", "LWGNT", "LWGNTCLR", "LWGNTCLRCLN", "LWTUP", 
+  "LWTUPCLR", "LWTUPCLRCLN", "SWGDN", "SWGDNCLR", "SWGNT", "SWGNTCLN", 
+  "SWGNTCLR", "SWGNTCLRCLN", "SWTDN", "SWTNT", "SWTNTCLN", "SWTNTCLR", 
+  "SWTNTCLRCLN", "TAUHGH", "TAULOW", "TAUMID", "TAUTOT", "TS", 
+  "CLDPRS", "CLDTMP", "DISPH", "H1000", "H250", "H500", "H850", 
+  "OMEGA500", "PBLTOP", "PS", "Q250", "Q500", "Q850", "QV10M", 
+  "QV2M", "SLP", "T10M", "T250", "T2M", "T2MDEW", "T2MWET", "T500", 
+  "T850", "TO3", "TOX", "TQI", "TQL", "TQV", "TROPPB", "TROPPT", 
+  "TROPPV", "TROPQ", "TROPT", "TS", "U10M", "U250", "U2M", "U500", 
+  "U50M", "U850", "V10M", "V250", "V2M", "V500", "V50M", "V850", 
+  "ZLCL"))
+    
+    names(varlist)<-c("file","var")
+    fm<-FindVars(varlist=varlist,dim=dim,avg=avg,varn=params)
+    if(is.na(fm)){stop("time averaged variable not available - try setting avg = FALSE", call. = TRUE, domain = NULL)}
+    print(fm)
+    fileNamesIn <- rep("", length(period)*length(fm))
+    fileNamesOut <- rep("", length(period)*length(fm))
+    
+    for (i in 1:length(period)) {
+        fileName <- paste(targetPath, "MERRA_", lon1, "_", lat1,
+            "_", lon2, "_", lat2, "_", variables, "_", dates[i],
+            ".nc4", sep = "")
+        fileNamesOut[i] <- fileName
+        fV <- 100
+        if (between(year[i], 1992, 2000)) {
+            fV <- 200
+        }
+        if (between(year[i], 2001, 2010)) {
+            fV <- 300
+        }
+        if (between(year[i], 2011, 2020)) {
+            fV <- 400
+        }
 
+        flm<-gsub("\\.","",fm)
+        
+      
+                vrlist <- varlist[which(varlist$file==flm),]
+                parameters <- vrlist$var[which(vrlist$var%in%params==TRUE)]
+                variables <- sapply(parameters, paste, "%2C", sep = "") %>% paste(collapse = "") %>%
+                substr(1, nchar(.) - 3)
+                url <- paste("http://goldsmr4.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FMERRA2%2FM2",substr(toupper(strsplit(fm,"_")[[1]][1]),2,2),substr(toupper(strsplit(fm,"_")[[1]][1]),6,6),"NX",toupper(strsplit(fm,"_")[[1]][3]),".5.12.4%2F",
+                year[i], "%2F", month[i], "%2FMERRA2_", fV, fm,
+                dates[i], ".nc4&FORMAT=bmM0Lw&BBOX=", boxes,
+                "&LABEL=MERRA2_", fV, fm, dates[i],
+                ".SUB.nc4&SHORTNAME=M2",substr(toupper(strsplit(fm,"_")[[1]][1]),2,2),substr(toupper(strsplit(fm,"_")[[1]][1]),6,6),"NX",toupper(strsplit(fm,"_")[[1]][3]),"&SERVICE=SUBSET_MERRA2&VERSION=1.02&LAYERS=&VARIABLES=",
+                tolower(variables), sep = "")
+                
+                
 
-  dates<-period %>% format(format="%Y%m%d")
-  year<-period %>% format(format="%Y") %>% as.numeric()
-  month<-period %>% format(format="%m")
-
-  variables<-sapply(params,paste,"%2C",sep="") %>%
-    paste(collapse='') %>%
-    substr(1,nchar(.)-3)
-
-  boxes<-c(lat1,lon1,lat2,lon2) %>%
-    sapply(paste,"%2C",sep="") %>%
-    paste(collapse='') %>%
-    substr(1,nchar(.)-3)
-
-  fileNamesIn<-rep("",length(period))
-  fileNamesOut<-rep("",length(period))
-
-  print(paste("downloading:",lon1,lat1,lon2,lat2,params))
-
-  for(i in 1:length(period)){
-
-
-    fileName<-paste(targetPath,
-                    "MERRA_",lon1,"_",lat1,"_",lon2,"_",lat2,"_",variables,"_",dates[i],".nc4",sep="")
-
-    fileNamesOut[i]<-fileName
-
-
-    fV<-100
-    if(between(year[i],1992,2000)){
-      fV<-200
+        
+        fileNamesIn[i] <- url
     }
-    if(between(year[i],2001,2010)){
-      fV<-300
+    if (runParallel) {
+        no_cores <- 8
+        cl <- parallel::makeCluster(no_cores)
+        parallel::clusterEvalQ(cl, library("httr"))
+        if (outputofParallelProc != "") {
+            parallel::clusterEvalQ(cl, sink(paste0(outputOfParallelProc,
+                Sys.getpid(), ".txt")))
+        }
+        files <- data.frame(fileNamesIn, fileNamesOut)
+        parallel::parSapply(cl, 1:length(fileNamesIn), getFileMerraFinal,
+            fileNamesIn, fileNamesOut, user, pass)
+        parallel::stopCluster(cl)
     }
-    if(between(year[i],2011,2020)){
-      fV<-400
+    else {
+        sapply(1:length(fileNamesIn), getFileMerraFinal, fileNamesIn,
+            fileNamesOut, user, pass)
     }
-
-
-    if(params!="swgdn"){
-    url<-paste("http://goldsmr4.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FMERRA2%2FM2I1NXASM.5.12.4%2F",
-               year[i],"%2F",
-               month[i],"%2FMERRA2_",fV,".inst1_2d_asm_Nx.",
-               dates[i],".nc4&FORMAT=bmM0Lw&BBOX=",boxes,
-               "&LABEL=MERRA2_",fV,".inst1_2d_asm_Nx.",dates[i],
-               ".SUB.nc4&SHORTNAME=M2I1NXASM&SERVICE=SUBSET_MERRA2&VERSION=1.02&LAYERS=&VARIABLES=",variables,
-               sep="")
-    }else{
-
-    url<-paste("http://goldsmr4.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FMERRA2%2FM2T1NXLFO.5.12.4%2F",
-               year[i],"%2F",
-               month[i],"%2FMERRA2_",fV,".tavg1_2d_lfo_Nx.",
-               dates[i],".nc4&FORMAT=bmM0Lw&BBOX=",boxes,
-               "&LABEL=MERRA2_",fV,".tavg1_2d_lfo_Nx.",dates[i],
-               ".SUB.nc4&SHORTNAME=M2T1NXLFO&SERVICE=SUBSET_MERRA2&VERSION=1.02&LAYERS=&VARIABLES=",variables,
-               sep="")
-
-    print(url)
-
-    }
-
-
-    fileNamesIn[i]<-url
-
-  }
-  if(runParallel){
-
-    no_cores <-8
-
-    # Initiate cluster
-    cl <- parallel::makeCluster(no_cores)
-    parallel::clusterEvalQ(cl, library("httr"))
-    if(outputofParallelProc!=""){
-      parallel::clusterEvalQ(cl, sink(paste0(outputOfParallelProc, Sys.getpid(), ".txt")))
-    }
-
-    files<-data.frame(fileNamesIn,fileNamesOut)
-
-    parallel::parSapply(cl,1:length(fileNamesIn),getFileMerraFinal,fileNamesIn, fileNamesOut,user,pass)
-    parallel::stopCluster(cl)
-  }else{
-    sapply(1:length(fileNamesIn),getFileMerraFinal,fileNamesIn, fileNamesOut,user,pass)
-
-
-  }
-
-
 }
-
-
 
 #' reads merra file from disk
 #' interpolates the data from the neighbouring 4 points with respect to the point given in lon lat
@@ -719,10 +924,10 @@ convMerraToBin<-function(in_path,out_path,date_seq,param,multI,silent=TRUE){
   temp<-ncvar_get(nc_file,param)
   dimX<-dim(temp)[1]
   dimY<-dim(temp)[2]
-  timePerFile<-dim(temp)[3]
-
-
-
+  if(!is.na(dim(temp)[3])){timePerFile<-dim(temp)[3]}else{
+    dim(temp)[3]<-1
+    timePerFile<-dim(temp)[3]}
+  
   lons<-ncvar_get(nc_file,"lon")
   lats<-ncvar_get(nc_file,"lat")
   time<-ncvar_get(nc_file,"time")
@@ -744,9 +949,11 @@ convMerraToBin<-function(in_path,out_path,date_seq,param,multI,silent=TRUE){
   writeBin(as.integer(dimY),con,8)
 
   #timeDim
+  print(timeDim)
   writeBin(as.integer(timeDim),con,8);
 
   #timePerFile
+  print(timePerFile)
   writeBin(as.integer(timePerFile),con,8);
 
   #lons
@@ -756,24 +963,26 @@ convMerraToBin<-function(in_path,out_path,date_seq,param,multI,silent=TRUE){
   writeBin(as.vector(lats),con,8);
 
   #time
-  date_seq_h<-seq(date_seq[1],date_seq[length(date_seq)]+3600*23,by="h")
+  if (timePerFile==1){date_seq_h<-date_seq}else{date_seq_h<-seq(date_seq[1],date_seq[length(date_seq)]+3600*23,by="h")}
 
   writeBin(as.integer(date_seq_h),con,8)
 
 
   #amount years
   y_l<-length(unique(year(date_seq)))
-
+  
   ####amount years
   writeBin(as.integer(y_l),con,8)
   print(y_l)
 
   ####years
   years<-unique(year(date_seq))
+  print(years)
   writeBin(as.vector(as.integer(years)),con,8)
 
   ####counts
   td<-tibble(dat=date_seq,year=year(date_seq)) %>% group_by(year) %>% summarize(n=n())
+  print(td)
   writeBin(as.vector(td$n),con,8)
 
   ####multI
@@ -840,7 +1049,8 @@ writeSingleYearFile<-function(year,listOfFiles,date_seq,param,timePerFile,dimX,d
         print(paste("working on ",listOfFilesRed[k]))
       }
       nc_file<-nc_open(listOfFilesRed[k])
-      dat<-aperm(ncvar_get(nc_file,param)*multVar,c(3,2,1))
+      if(length(dim(ncvar_get(nc_file,param)))!=3){dat<-aperm(ncvar_get(nc_file,param)*multVar,c(2,1))}else{
+      dat<-aperm(ncvar_get(nc_file,param)*multVar,c(3,2,1))}
       dat<-as.vector(dat)
       dat[is.na(dat)]<-0
       nc_close(nc_file)
@@ -865,8 +1075,6 @@ writeSingleYearFile<-function(year,listOfFiles,date_seq,param,timePerFile,dimX,d
   }
 
 }
-
-
 
 #' Writes a very long vector to a binary file
 #'
@@ -1159,6 +1367,21 @@ getOPSDattribute<-function(tab_){
   return(unique(tab_$attribute))
 }
 
-
+#' Helper function to find corresponding dataset for given variables
+#'
+#' @description Searches for dataset containing given variables
+#' @param varlist data frame of datasets and contained variables
+#' @param dim requested dataset dimension. 2d or 3d, however only 2d support tested at the moment.
+#' @param avg if true, time averaged variables will be prioritised
+#' @param varn name of the requested variable
+#' @return name of the corresponding dataset
+FindVars<-function(varlist,dim,avg,varn){
+  
+fl<-unique(varlist[varlist$var%in%varn,]$file)
+if(avg==TRUE){avgind<-"tavg"
+fl<-fl[grep(avgind,fl)]}
+fl<-fl[grep(dim,fl)]
+return(paste(".",fl[1],".",sep=""))
+}
 
 
