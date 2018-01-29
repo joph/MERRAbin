@@ -939,7 +939,7 @@ convMerraToBin<-function(in_path,out_path,date_seq,param,multI,silent=TRUE){
   length<-timeDim
 
   #size
-  size<-2
+  size<-4
   writeBin(as.integer(size),con,8)
 
   #dimx
@@ -1066,7 +1066,7 @@ writeSingleYearFile<-function(year,listOfFiles,date_seq,param,timePerFile,dimX,d
 
     con = file(paste(out_path,year,".bin",sep=""),open="wb")
 
-    writeBinLong(out, con,2)
+    writeBinLong(out, con, 4)
 
     close(con)
 
