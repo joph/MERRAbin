@@ -5,7 +5,7 @@
 \title{Helper function to convert one year of MERRA data to a binary file}
 \usage{
 writeSingleYearFile(year, listOfFiles, date_seq, param, timePerFile, dimX, dimY,
-  out_path, silent = TRUE)
+  out_path, multVar, silent = TRUE)
 }
 \arguments{
 \item{year}{Year to convert}
@@ -24,8 +24,11 @@ writeSingleYearFile(year, listOfFiles, date_seq, param, timePerFile, dimX, dimY,
 
 \item{out_path}{Path to write file to}
 
+\item{multVar}{multiplicator for variable (to be used if numbers after comma are relevant)}
+
 \item{silent}{If true, no detailed output on handling of files is printed to console}
 }
 \description{
 This is a helper function used to converted one year of MERRA data to a binary file
 }
+

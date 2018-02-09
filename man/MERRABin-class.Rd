@@ -2,8 +2,8 @@
 % Please edit documentation in R/MERRA_functions.R
 \docType{class}
 \name{MERRABin-class}
-\alias{MERRABin-class}
 \alias{MERRABin}
+\alias{MERRABin-class}
 \title{Reference class for Binary gridded timeseries data}
 \description{
 Reference class for Binary gridded timeseries data
@@ -39,5 +39,4 @@ Reference class for Binary gridded timeseries data
 
 \item{\code{sizePerYear}}{The number of bytes saved per year per location}
 }}
-
 

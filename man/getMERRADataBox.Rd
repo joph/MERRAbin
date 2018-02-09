@@ -26,11 +26,11 @@ getMERRADataBox(targetPath = "", lon1, lat1, lon2, lat2, period, params, user,
 
 \item{runParallel}{if true, download uses available cores to parallelize downloads}
 
-\item{outputOfParallelProc}{If different from "", output files are written to the specified directory}
-  
 \item{dim}{requested dataset dimension. 2d or 3d, however only 2d support tested at the moment.}
-  
-\item{avg}{if true, time averaged variables will be prioritised}  
+
+\item{avg}{if true, time averaged variables will be prioritised}
+
+\item{outputOfParallelProc}{If different from "", output files are written to the specified directory}
 }
 \value{
 Does not return anything, but writes, as a side-effect, the downloaded files to disk.
@@ -38,3 +38,4 @@ Does not return anything, but writes, as a side-effect, the downloaded files to 
 \description{
 Function to download data from the merra2 dataset
 }
+

@@ -17,3 +17,4 @@ writeBinLong(bytes, connection, size)
 The R function writeBin is limited by 2^31-1 bytes. This function uses writeBin
 iteratively to be able to write longer files
 }
+

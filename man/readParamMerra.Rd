@@ -23,3 +23,4 @@ a tibble with the interpolated timeseries at the given point. Also, time is adde
 reads merra file from disk
 interpolates the data from the neighbouring 4 points with respect to the point given in lon lat
 }
+

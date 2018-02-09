@@ -4,7 +4,7 @@
 \alias{FindVars}
 \title{Helper function to find corresponding dataset for given variables}
 \usage{
-FindVars(varlist,dim,avg,varn)
+FindVars(varlist, dim, avg, varn)
 }
 \arguments{
 \item{varlist}{data frame of datasets and contained variables}
@@ -21,3 +21,4 @@ name of the corresponding dataset
 \description{
 Searches for dataset containing given variables
 }
+

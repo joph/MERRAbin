@@ -17,3 +17,4 @@ Does not return anything. Writes, as side-effect, two files in the given directo
 \description{
 Creates the test-data set also available as data in the package
 }
+
