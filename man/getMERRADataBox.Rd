@@ -5,7 +5,7 @@
 \title{Get MERRA Files for a given spatial box}
 \usage{
 getMERRADataBox(targetPath = "", lon1, lat1, lon2, lat2, period, params, user,
-  pass, runParallel = TRUE, outputofParallelProc = "")
+  pass, runParallel = TRUE, outputofParallelProc = "", dim, avg)
 }
 \arguments{
 \item{targetPath}{Path to save MERRA ncdf files to}
@@ -26,6 +26,10 @@ getMERRADataBox(targetPath = "", lon1, lat1, lon2, lat2, period, params, user,
 
 \item{runParallel}{if true, download uses available cores to parallelize downloads}
 
+\item{dim}{requested dataset dimension. 2d or 3d, however only 2d support tested at the moment.}
+
+\item{avg}{if true, time averaged variables will be prioritised}
+
 \item{outputOfParallelProc}{If different from "", output files are written to the specified directory}
 }
 \value{
@@ -34,3 +38,4 @@ Does not return anything, but writes, as a side-effect, the downloaded files to 
 \description{
 Function to download data from the merra2 dataset
 }
+

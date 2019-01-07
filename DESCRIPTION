@@ -1,10 +1,12 @@
 Package: MERRAbin
 Type: Package
-Title: Downloads MERRA Climate Data and converts them to quickly readable binary format
+Title: Downloads MERRA Climate Data and converts them to quickly readable binary
+    format
 Version: 0.1.0
 Author: Johannes Schmidt
 Maintainer: Johannes Schmidt <johannes.schmidt@boku.ac.at>
-Description: Downloads MERRA Climate Data, converts them to quickly readable binary format and offers interface to read binary data from disk.
+Description: Downloads MERRA Climate Data, converts them to quickly readable
+    binary format and offers interface to read binary data from disk.
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
@@ -30,4 +32,4 @@ Depends:
     magrittr,
     sp,
     zoo
-RoxygenNote: 6.0.1
+RoxygenNote: 5.0.1

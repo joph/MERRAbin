@@ -20,3 +20,4 @@ getFileMerraFinal(i, fileNameIn, fileNameOut, user, pass)
 \description{
 Function to download a single MERRA file with authentication from gesdisc. This is a helper function to make sParApply work
 }
+

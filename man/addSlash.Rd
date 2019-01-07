@@ -15,3 +15,4 @@ A path name with trailing slash
 \description{
 adds a slash to the end of a path name
 }
+

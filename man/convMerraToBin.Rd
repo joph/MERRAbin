@@ -4,7 +4,7 @@
 \alias{convMerraToBin}
 \title{conversion of merra files to binary files}
 \usage{
-convMerraToBin(in_path, out_path, date_seq, param, silent = TRUE)
+convMerraToBin(in_path, out_path, date_seq, param, multI, silent = TRUE)
 }
 \arguments{
 \item{in_path}{Path of merra files}
@@ -15,8 +15,11 @@ convMerraToBin(in_path, out_path, date_seq, param, silent = TRUE)
 
 \item{param}{Parameter in MERRA file that should be converted}
 
+\item{multI}{multiplicator for variable (to be used if numbers after comma are relevant)}
+
 \item{silent}{If true, no detailed output on handling of files is printed to console}
 }
 \description{
 converts merra files to a fast readable binary format
 }
+

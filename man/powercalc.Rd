@@ -12,3 +12,4 @@ powercalc(wIn, pOut, windSpeeds, numberTurbines)
 \description{
 Title
 }
+

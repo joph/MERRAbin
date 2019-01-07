@@ -23,3 +23,4 @@ The values read in from the binary connection
 \description{
 Reads multiple bytes from a binary file
 }
+
